@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Header from '../components/Header';
 import AeronaveSelector from '../components/AeronaveSelector';
 import { useData } from '../context/DataContext';
+import { NivelPermissao } from '../types';
 import { showToast } from '../components/Toast';
 
 export default function AlocacaoEquipePage() {
@@ -12,6 +13,10 @@ export default function AlocacaoEquipePage() {
   const [funcId, setFuncId] = useState('');
 
   const aeronave = codigoAeronave ? getAeronave(codigoAeronave) : undefined;
+
+  const funcionariosAlocaveis = funcionarios.filter(
+    (f) => f.nivelPermissao !== NivelPermissao.ADMINISTRADOR
+  );
 
   const handleAlocar = (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,7 +71,7 @@ export default function AlocacaoEquipePage() {
                 onChange={(e) => setFuncId(e.target.value)}
               >
                 <option value="">-- Selecione --</option>
-                {funcionarios.map((f) => (
+                {funcionariosAlocaveis.map((f) => (
                   <option key={f.id} value={f.id}>
                     {f.id} — {f.nome} ({f.nivelPermissao})
                   </option>

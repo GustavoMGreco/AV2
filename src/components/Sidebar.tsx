@@ -23,7 +23,7 @@ const menuItems: MenuItem[] = [
     permissoes: [NivelPermissao.ADMINISTRADOR, NivelPermissao.ENGENHEIRO],
   },
   {
-    label: 'Cadastrar Funcionário',
+    label: 'Gerenciar Funcionários',
     path: '/funcionarios/novo',
     icon: '',
     permissoes: [NivelPermissao.ADMINISTRADOR],

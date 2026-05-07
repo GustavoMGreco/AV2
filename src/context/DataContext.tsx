@@ -22,6 +22,8 @@ interface DataContextType {
 
   // Funcionário
   cadastrarFuncionario: (func: Funcionario) => string | null;
+  editarFuncionario: (id: string, dados: Partial<Funcionario>) => string | null;
+  excluirFuncionario: (id: string) => string | null;
 
   // Peças
   adicionarPeca: (codigoAeronave: string, peca: Peca) => string | null;
@@ -50,14 +52,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   // ---- AERONAVE ----
   const cadastrarAeronave = useCallback((aeronave: Aeronave): string | null => {
-    setAeronaves((prev) => {
-      if (prev.some((a) => a.codigo === aeronave.codigo)) return prev;
-      return [...prev, aeronave];
-    });
-    // Check duplicate synchronously
+    // Validação de unicidade síncrona
     if (aeronaves.some((a) => a.codigo === aeronave.codigo)) {
       return 'Código de aeronave já existe!';
     }
+    setAeronaves((prev) => [...prev, aeronave]);
     return null;
   }, [aeronaves]);
 
@@ -75,6 +74,43 @@ export function DataProvider({ children }: { children: ReactNode }) {
       return 'Nome de usuário já existe!';
     }
     setFuncionarios((prev) => [...prev, func]);
+    return null;
+  }, [funcionarios]);
+
+  const editarFuncionario = useCallback((id: string, dados: Partial<Funcionario>): string | null => {
+    const func = funcionarios.find((f) => f.id === id);
+    if (!func) return 'Funcionário não encontrado!';
+
+    // Validar unicidade de novo ID se alterado
+    if (dados.id && dados.id !== id && funcionarios.some((f) => f.id === dados.id)) {
+      return 'ID de funcionário já existe!';
+    }
+    // Validar unicidade de novo login se alterado
+    if (dados.usuario && dados.usuario !== func.usuario && funcionarios.some((f) => f.usuario === dados.usuario)) {
+      return 'Nome de usuário já existe!';
+    }
+
+    setFuncionarios((prev) =>
+      prev.map((f) => (f.id === id ? { ...f, ...dados } : f))
+    );
+    return null;
+  }, [funcionarios]);
+
+  const excluirFuncionario = useCallback((id: string): string | null => {
+    if (!funcionarios.some((f) => f.id === id)) {
+      return 'Funcionário não encontrado!';
+    }
+    // Remover funcionário das etapas de aeronaves em que está alocado
+    setAeronaves((prev) =>
+      prev.map((a) => ({
+        ...a,
+        etapas: a.etapas.map((et) => ({
+          ...et,
+          funcionarios: et.funcionarios.filter((fId) => fId !== id),
+        })),
+      }))
+    );
+    setFuncionarios((prev) => prev.filter((f) => f.id !== id));
     return null;
   }, [funcionarios]);
 
@@ -170,8 +206,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (!aeronave) return 'Aeronave não encontrada!';
       if (etapaIndex < 0 || etapaIndex >= aeronave.etapas.length) return 'Etapa inválida!';
 
-      if (!funcionarios.some((f) => f.id === funcId)) {
+      const func = funcionarios.find((f) => f.id === funcId);
+      if (!func) {
         return 'Funcionário não encontrado!';
+      }
+
+      // Bloquear administradores de serem alocados a tarefas/equipes
+      if (func.nivelPermissao === NivelPermissao.ADMINISTRADOR) {
+        return 'Administradores não podem ser alocados a tarefas ou equipes!';
       }
 
       if (aeronave.etapas[etapaIndex].funcionarios.includes(funcId)) {
@@ -280,6 +322,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         cadastrarAeronave,
         getAeronave,
         cadastrarFuncionario,
+        editarFuncionario,
+        excluirFuncionario,
         adicionarPeca,
         atualizarStatusPeca,
         adicionarEtapa,
