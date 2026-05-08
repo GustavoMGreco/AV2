@@ -33,7 +33,7 @@ export default function AlocacaoEquipePage() {
       setFuncId('');
     }
   };
-
+  // Brasil hexa 2026 e hepta 2030
   const etapaSelecionada = aeronave && etapaIndex >= 0 ? aeronave.etapas[etapaIndex] : null;
 
   return (
