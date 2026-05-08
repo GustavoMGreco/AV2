@@ -21,9 +21,10 @@ interface DataContextType {
   getAeronave: (codigo: string) => Aeronave | undefined;
 
   // Funcionário
+  gerarIdFuncionario: (nivel: NivelPermissao) => string;
   cadastrarFuncionario: (func: Funcionario) => string | null;
   editarFuncionario: (id: string, dados: Partial<Funcionario>) => string | null;
-  excluirFuncionario: (id: string) => string | null;
+  excluirFuncionario: (id: string, currentUserId: string) => string | null;
 
   // Peças
   adicionarPeca: (codigoAeronave: string, peca: Peca) => string | null;
@@ -66,6 +67,32 @@ export function DataProvider({ children }: { children: ReactNode }) {
   );
 
   // ---- FUNCIONÁRIO ----
+
+  // Gera ID automático baseado no nível: ADM001, ENG002, OPE010
+  const gerarIdFuncionario = useCallback((nivel: NivelPermissao): string => {
+    const prefixMap: Record<NivelPermissao, string> = {
+      [NivelPermissao.ADMINISTRADOR]: 'ADM',
+      [NivelPermissao.ENGENHEIRO]: 'ENG',
+      [NivelPermissao.OPERADOR]: 'OPE',
+    };
+    const prefix = prefixMap[nivel];
+
+    // Contar todos os funcionários existentes com o mesmo prefixo
+    const existentes = funcionarios.filter((f) => f.id.startsWith(prefix));
+
+    // Encontrar o maior número já utilizado
+    let maxNum = 0;
+    for (const f of existentes) {
+      const numPart = parseInt(f.id.slice(prefix.length), 10);
+      if (!isNaN(numPart) && numPart > maxNum) {
+        maxNum = numPart;
+      }
+    }
+
+    const nextNum = maxNum + 1;
+    return `${prefix}${String(nextNum).padStart(3, '0')}`;
+  }, [funcionarios]);
+
   const cadastrarFuncionario = useCallback((func: Funcionario): string | null => {
     if (funcionarios.some((f) => f.id === func.id)) {
       return 'ID de funcionário já existe!';
@@ -96,10 +123,27 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return null;
   }, [funcionarios]);
 
-  const excluirFuncionario = useCallback((id: string): string | null => {
-    if (!funcionarios.some((f) => f.id === id)) {
+  const excluirFuncionario = useCallback((id: string, currentUserId: string): string | null => {
+    const func = funcionarios.find((f) => f.id === id);
+    if (!func) {
       return 'Funcionário não encontrado!';
     }
+
+    // Impedir exclusão da própria conta
+    if (id === currentUserId) {
+      return 'Você não pode excluir sua própria conta!';
+    }
+
+    // Impedir exclusão do último administrador
+    if (func.nivelPermissao === NivelPermissao.ADMINISTRADOR) {
+      const totalAdmins = funcionarios.filter(
+        (f) => f.nivelPermissao === NivelPermissao.ADMINISTRADOR
+      ).length;
+      if (totalAdmins <= 1) {
+        return 'Não é possível excluir o último administrador do sistema!';
+      }
+    }
+
     // Remover funcionário das etapas de aeronaves em que está alocado
     setAeronaves((prev) =>
       prev.map((a) => ({
@@ -321,6 +365,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         funcionarios,
         cadastrarAeronave,
         getAeronave,
+        gerarIdFuncionario,
         cadastrarFuncionario,
         editarFuncionario,
         excluirFuncionario,

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Header from '../components/Header';
 import { useData } from '../context/DataContext';
+import { useAuth } from '../context/AuthContext';
 import { type Funcionario, NivelPermissao } from '../types';
 import { showToast } from '../components/Toast';
 
@@ -13,16 +14,16 @@ const PERMISSOES = [
 type Tab = 'cadastrar' | 'listar';
 
 export default function CadastroFuncionarioPage() {
-  const { funcionarios, cadastrarFuncionario, editarFuncionario, excluirFuncionario } = useData();
+  const { funcionarios, gerarIdFuncionario, cadastrarFuncionario, editarFuncionario, excluirFuncionario } = useData();
+  const { usuario } = useAuth();
 
   const [tab, setTab] = useState<Tab>('listar');
 
-  // Form state (cadastro)
-  const [id, setId] = useState('');
+  // Form state (cadastro) — sem campo de ID manual
   const [nome, setNome] = useState('');
   const [telefone, setTelefone] = useState('');
   const [endereco, setEndereco] = useState('');
-  const [usuario, setUsuario] = useState('');
+  const [usuario_input, setUsuarioInput] = useState('');
   const [senha, setSenha] = useState('');
   const [nivel, setNivel] = useState<NivelPermissao>(NivelPermissao.OPERADOR);
 
@@ -38,19 +39,25 @@ export default function CadastroFuncionarioPage() {
   // Delete confirmation
   const [excluindo, setExcluindo] = useState<Funcionario | null>(null);
 
+  // Gera preview do próximo ID para o nível selecionado
+  const proximoId = gerarIdFuncionario(nivel);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!id || !nome || !usuario || !senha) {
+    if (!nome || !usuario_input || !senha) {
       showToast('error', 'Preencha todos os campos obrigatórios!');
       return;
     }
 
+    // Gerar ID automático no momento do cadastro
+    const novoId = gerarIdFuncionario(nivel);
+
     const err = cadastrarFuncionario({
-      id: id.trim(),
+      id: novoId,
       nome: nome.trim(),
       telefone: telefone.trim(),
       endereco: endereco.trim(),
-      usuario: usuario.trim(),
+      usuario: usuario_input.trim(),
       senha,
       nivelPermissao: nivel,
     });
@@ -58,12 +65,11 @@ export default function CadastroFuncionarioPage() {
     if (err) {
       showToast('error', err);
     } else {
-      showToast('success', `Funcionário "${nome}" cadastrado com sucesso!`);
-      setId('');
+      showToast('success', `Funcionário "${nome}" cadastrado com matrícula ${novoId}!`);
       setNome('');
       setTelefone('');
       setEndereco('');
-      setUsuario('');
+      setUsuarioInput('');
       setSenha('');
       setNivel(NivelPermissao.OPERADOR);
       setTab('listar');
@@ -106,8 +112,8 @@ export default function CadastroFuncionarioPage() {
   };
 
   const handleExcluir = () => {
-    if (!excluindo) return;
-    const err = excluirFuncionario(excluindo.id);
+    if (!excluindo || !usuario) return;
+    const err = excluirFuncionario(excluindo.id, usuario.id);
     if (err) {
       showToast('error', err);
     } else {
@@ -194,10 +200,10 @@ export default function CadastroFuncionarioPage() {
                             fontWeight: 600,
                             background:
                               f.nivelPermissao === NivelPermissao.ADMINISTRADOR
-                                ? 'var(--accent-danger, #ef4444)'
+                                ? 'var(--danger)'
                                 : f.nivelPermissao === NivelPermissao.ENGENHEIRO
-                                ? 'var(--accent, #3b82f6)'
-                                : 'var(--accent-success, #22c55e)',
+                                ? 'var(--primary)'
+                                : 'var(--success)',
                             color: '#fff',
                           }}
                         >
@@ -214,7 +220,7 @@ export default function CadastroFuncionarioPage() {
                         </button>
                         <button
                           className="btn btn--ghost"
-                          style={{ padding: '4px 12px', fontSize: '0.85rem', color: 'var(--accent-danger, #ef4444)' }}
+                          style={{ padding: '4px 12px', fontSize: '0.85rem', color: 'var(--danger)' }}
                           onClick={() => setExcluindo(f)}
                         >
                           Excluir
@@ -233,74 +239,7 @@ export default function CadastroFuncionarioPage() {
       {tab === 'cadastrar' && (
         <div className="glass-card form-card">
           <form onSubmit={handleSubmit}>
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Matrícula (ID) *</label>
-                <input
-                  className="form-input"
-                  value={id}
-                  onChange={(e) => setId(e.target.value)}
-                  placeholder="Ex: ENG002"
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Nome Completo *</label>
-                <input
-                  className="form-input"
-                  value={nome}
-                  onChange={(e) => setNome(e.target.value)}
-                  placeholder="Nome do funcionário"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Telefone</label>
-                <input
-                  className="form-input"
-                  value={telefone}
-                  onChange={(e) => setTelefone(e.target.value)}
-                  placeholder="(11) 99999-9999"
-                />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Endereço</label>
-                <input
-                  className="form-input"
-                  value={endereco}
-                  onChange={(e) => setEndereco(e.target.value)}
-                  placeholder="Endereço completo"
-                />
-              </div>
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Usuário (Login) *</label>
-                <input
-                  className="form-input"
-                  value={usuario}
-                  onChange={(e) => setUsuario(e.target.value)}
-                  placeholder="Nome de usuário"
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Senha *</label>
-                <input
-                  className="form-input"
-                  type="password"
-                  value={senha}
-                  onChange={(e) => setSenha(e.target.value)}
-                  placeholder="Senha segura"
-                  required
-                />
-              </div>
-            </div>
-
+            {/* Nível de permissão PRIMEIRO — porque o ID depende dele */}
             <div className="form-group">
               <label className="form-label">Nível de Permissão *</label>
               <div className="permission-selector">
@@ -317,6 +256,73 @@ export default function CadastroFuncionarioPage() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Preview da matrícula gerada automaticamente */}
+            <div className="form-group">
+              <label className="form-label">Matrícula (gerada automaticamente)</label>
+              <input
+                className="form-input"
+                value={proximoId}
+                disabled
+                style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '1.1rem', letterSpacing: '1px' }}
+              />
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Nome Completo *</label>
+                <input
+                  className="form-input"
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
+                  placeholder="Nome do funcionário"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Telefone</label>
+                <input
+                  className="form-input"
+                  value={telefone}
+                  onChange={(e) => setTelefone(e.target.value)}
+                  placeholder="(11) 99999-9999"
+                />
+              </div>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Endereço</label>
+                <input
+                  className="form-input"
+                  value={endereco}
+                  onChange={(e) => setEndereco(e.target.value)}
+                  placeholder="Endereço completo"
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Usuário (Login) *</label>
+                <input
+                  className="form-input"
+                  value={usuario_input}
+                  onChange={(e) => setUsuarioInput(e.target.value)}
+                  placeholder="Nome de usuário"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Senha *</label>
+              <input
+                className="form-input"
+                type="password"
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
+                placeholder="Senha segura"
+                required
+              />
             </div>
 
             <button type="submit" className="btn btn--primary btn--full">

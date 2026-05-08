@@ -7,7 +7,7 @@ import { showToast } from '../components/Toast';
 
 export default function LoginPage() {
   const { login } = useAuth();
-  const { funcionarios, cadastrarFuncionario } = useData();
+  const { funcionarios, gerarIdFuncionario, cadastrarFuncionario } = useData();
   const navigate = useNavigate();
 
   const isFirstRun = funcionarios.length === 0;
@@ -17,7 +17,6 @@ export default function LoginPage() {
   const [senha, setSenha] = useState('');
 
   // Setup state
-  const [setupId, setSetupId] = useState('');
   const [setupNome, setSetupNome] = useState('');
   const [setupTelefone, setSetupTelefone] = useState('');
   const [setupEndereco, setSetupEndereco] = useState('');
@@ -38,12 +37,13 @@ export default function LoginPage() {
 
   const handleSetup = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!setupId || !setupNome || !setupUsuario || !setupSenha) {
+    if (!setupNome || !setupUsuario || !setupSenha) {
       showToast('error', 'Preencha todos os campos obrigatórios!');
       return;
     }
+    const novoId = gerarIdFuncionario(NivelPermissao.ADMINISTRADOR);
     const err = cadastrarFuncionario({
-      id: setupId,
+      id: novoId,
       nome: setupNome,
       telefone: setupTelefone,
       endereco: setupEndereco,
@@ -54,7 +54,7 @@ export default function LoginPage() {
     if (err) {
       showToast('error', err);
     } else {
-      showToast('success', 'Administrador criado! Faça login.');
+      showToast('success', `Administrador criado com matrícula ${novoId}! Faça login.`);
       setSetupDone(true);
     }
   };
@@ -84,13 +84,12 @@ export default function LoginPage() {
               <form onSubmit={handleSetup} className="login-form">
                 <div className="form-row">
                   <div className="form-group">
-                    <label className="form-label">Matrícula (ID) *</label>
+                    <label className="form-label">Matrícula (automática)</label>
                     <input
                       className="form-input"
-                      value={setupId}
-                      onChange={(e) => setSetupId(e.target.value)}
-                      placeholder="Ex: ADM001"
-                      required
+                      value={gerarIdFuncionario(NivelPermissao.ADMINISTRADOR)}
+                      disabled
+                      style={{ fontFamily: 'monospace', fontWeight: 700 }}
                     />
                   </div>
                   <div className="form-group">
